@@ -2,9 +2,9 @@ from datetime import datetime
 
 
 class CreatedAtMetaclass(type):
-    def __new__(cls, name, bases, attrs):
-        attrs["created_at"] = datetime.now()
-        return super().__new__(cls, name, bases, attrs)
+    def __new__(cls, name, bases, namespace):
+        namespace["created_at"] = datetime.now()
+        return super().__new__(cls, name, bases, namespace)
 
 
 class Class1(metaclass=CreatedAtMetaclass):
