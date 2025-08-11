@@ -8,7 +8,8 @@ def search(arr: list, number: int) -> bool:
             left_index = mid_index + 1
         elif arr[mid_index] > number:
             right_index = mid_index - 1
-    
+
     return False
+
 
 print(search([1, 2, 3, 45, 356, 569, 600, 705, 923], 600))
