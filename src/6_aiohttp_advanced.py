@@ -4,7 +4,7 @@ import json
 import aiofiles
 import aiohttp
 import ijson
-from aiohttp import StreamReader
+from aiohttp import StreamReader 
 
 
 async def fetch_and_parse(url: str, session: aiohttp.ClientSession):
