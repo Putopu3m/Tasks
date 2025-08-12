@@ -39,7 +39,7 @@ async def worker(
     async with aiofiles.open(output_file, "a", encoding="utf-8") as out:
         while True:
             url = await queue.get()
-            if url is None:  # сигнал остановки
+            if url is None:
                 queue.task_done()
                 break
 
