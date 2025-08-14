@@ -32,9 +32,6 @@ def parse_currency(path: str) -> str | None:
 
 
 async def app(scope, receive, send):
-    """
-    ASGI-приложение: принимает HTTP-запросы и проксирует ответ провайдера курсов.
-    """
     if scope["type"] != "http":
         await send_json_error(send, 404, "Unsupported scope type")
         return
@@ -97,7 +94,6 @@ async def app(scope, receive, send):
     except asyncio.TimeoutError:
         await send_json_error(send, 504, "Upstream timeout")
     except aiohttp.ClientError as e:
-        # Любая сеть/SSL/DNS ошибка до апстрима — это 502
         await send_json_error(send, 502, f"Bad Gateway: {e.__class__.__name__}")
     except Exception:
         await send_json_error(send, 500, "Internal Server Error")

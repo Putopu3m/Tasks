@@ -14,10 +14,6 @@ PROVIDER = "https://www.exchangerate-api.com"
 
 
 def _http_status_line(status_code: int) -> str:
-    """
-    WSGI требует строку статуса вида '200 OK'.
-    Берём reason-фразу из http.HTTPStatus, если она известна.
-    """
     try:
         reason = HTTPStatus(status_code).phrase
     except Exception:
@@ -65,14 +61,6 @@ def _error(start_response, status: int, message: str):
 
 
 def app(environ, start_response):
-    """
-    Главная точка входа WSGI.
-    Сервер (wsgiref, gunicorn, uWSGI и т.п.) вызывает её на каждый HTTP-запрос.
-
-    environ: dict с данными запроса (метод, путь, заголовки и т.п.)
-    start_response: функция для отправки статуса/заголовков; принимает (status_line, headers_list)
-    Функция должна вернуть итерируемое из байтов (тело ответа).
-    """
     method = environ.get("REQUEST_METHOD", "GET").upper()
     path = environ.get("PATH_INFO", "/")
 
@@ -83,8 +71,6 @@ def app(environ, start_response):
     if method != "GET":
         return _error(start_response, 405, "Method Not Allowed (use GET)")
 
-    # Ожидаем путь вида '/USD'
-    # Уберём ведущие/хвостовые слеши и проверим, что это три буквы
     currency = path.strip("/")
 
     if not currency:
@@ -97,10 +83,8 @@ def app(environ, start_response):
 
     currency = currency.upper()
 
-    # Формируем апстрим-URL к провайдеру
     upstream_url: str = f"https://api.exchangerate-api.com/v4/latest/{currency}"
 
-    # Делаем исходящий HTTP-запрос стандартной библиотекой (без сторонних пакетов)
     req = urllib.request.Request(
         upstream_url,
         headers={
@@ -111,22 +95,16 @@ def app(environ, start_response):
     )
 
     try:
-        # timeout защитит нас от вечно висящих соединений
         with urllib.request.urlopen(req, timeout=10) as resp:
             status_code = resp.getcode()
-            # читаем сырое тело (это уже JSON от провайдера) — проксируем "как есть"
             body = resp.read()
 
-            # Можно пробросить контент-тайп провайдера, но мы явно ставим JSON
             headers = [
                 ("Content-Type", "application/json; charset=utf-8"),
                 ("Content-Length", str(len(body))),
-                # Небольшая защита от кэширования прокси/браузером
                 ("Cache-Control", "no-store"),
-                # Немного CORS, чтобы было удобно тестировать из браузера
                 ("Access-Control-Allow-Origin", "*"),
                 ("Access-Control-Expose-Headers", "Content-Type"),
-                # Опционально — сообщим клиенту, кто источник
                 ("X-Proxy-Provider", PROVIDER),
             ]
 
@@ -134,8 +112,6 @@ def app(environ, start_response):
             return [body]
 
     except urllib.error.HTTPError as e:
-        # Провайдер вернул HTTP-ошибку (например, 404 для неизвестной валюты)
-        # Проксируем его код и тело, если есть
         err_body = e.read() or json.dumps(
             {"error": f"Upstream HTTPError: {e.code}"}
         ).encode("utf-8")
@@ -149,16 +125,11 @@ def app(environ, start_response):
         return [err_body]
 
     except urllib.error.URLError as e:
-        # Ошибка сети/DNS/SSL и т.п. — считаем, что апстрим недоступен
         return _error(start_response, 502, f"Bad Gateway: {e.reason}")
 
     except Exception as e:
-        # Непредвиденная ошибка внутри нашего приложения
         return _error(start_response, 500, f"Internal Server Error: {e}")
 
-
-# Небольшой dev-сервер из стандартной библиотеки.
-# Это не для продакшена, но удобно для локального запуска.
 if __name__ == "__main__":
     with make_server("127.0.0.1", 8000, app) as server:
         print("Serving on http://127.0.0.1:8000 (Ctrl+C to stop)")
